@@ -52,7 +52,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	"use strict";
 
@@ -71,17 +71,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return new _connection2.default(url, cb);
 	}
 
-/***/ },
+/***/ }),
 /* 1 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	"use strict";
 
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
 	Object.defineProperty(exports, "__esModule", {
-	  value: true
+	    value: true
 	});
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 	var _events = __webpack_require__(2);
 
@@ -100,69 +100,82 @@ return /******/ (function(modules) { // webpackBootstrap
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 	var Connection = function (_Events$EventEmitter) {
-	  _inherits(Connection, _Events$EventEmitter);
+	    _inherits(Connection, _Events$EventEmitter);
 
-	  function Connection(url, cb) {
-	    _classCallCheck(this, Connection);
+	    function Connection(url, cb) {
+	        _classCallCheck(this, Connection);
 
-	    var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(Connection).call(this));
+	        var _this = _possibleConstructorReturn(this, (Connection.__proto__ || Object.getPrototypeOf(Connection)).call(this));
 
-	    _this.url = url;
-	    _this.cb = cb;
-	    _this.connect();
+	        _this.url = url;
+	        _this.cb = cb;
+	        _this.connect();
 
-	    _this.channels = {};
-	    return _this;
-	  }
+	        _this.channels = {};
+	        return _this;
+	    }
 
-	  _createClass(Connection, [{
-	    key: "connect",
-	    value: function connect() {
-	      var self = this;
+	    _createClass(Connection, [{
+	        key: "connect",
+	        value: function connect() {
+	            var self = this;
 
-	      this.ws = new WebSocket(this.url);
-	      this.ws.onopen = function (evt) {
-	        self.cb(self);
-	      };
-	      this.ws.onclose = function (evt) {};
-	      this.ws.onerror = function (evt) {};
-	      this.ws.onmessage = function (evt) {
-	        var data = JSON.parse(evt.data);
-	        if (data.type === "message") {
-	          self.emit(data.channel, JSON.parse(data.body));
+	            this.ws = new WebSocket(this.url);
+	            this.ws.onopen = function (evt) {
+	                self.cb(self);
+	            };
+
+	            this.ws.onclose = function (evt) {};
+
+	            this.ws.onerror = function (evt) {
+	                var data = JSON.parse(evt.data);
+	                console.log('error', data);
+	            };
+
+	            this.ws.onmessage = function (evt) {
+	                var data = JSON.parse(evt.data);
+	                console.log('tag', data);
+	                if (data.type === "message") {
+	                    self.emit(data.channel, JSON.parse(data.body));
+	                }
+	            };
 	        }
-	      };
-	    }
-	  }, {
-	    key: "send",
-	    value: function send(data) {
-	      this.ws.send(JSON.stringify(data));
-	    }
-	  }, {
-	    key: "subscribe",
-	    value: function subscribe(channel, cb) {
-	      var ch = new _channel2.default(this, channel, cb);
-	      ch.subscribe();
-	      this.on(channel, cb);
+	    }, {
+	        key: "send",
+	        value: function send(data) {
+	            this.ws.send(JSON.stringify(data));
+	        }
+	    }, {
+	        key: "subscribe",
+	        value: function subscribe(channel, event, cb) {
+	            var ch = new _channel2.default(this, channel, event, cb);
+	            ch.subscribe();
+	            this.on(channel, cb);
 
-	      return ch;
-	    }
-	  }, {
-	    key: "perform",
-	    value: function perform(channel, msg) {
-	      var data = { type: "message", channel: channel, body: JSON.stringify(msg) };
-	      this.ws.send(JSON.stringify(data));
-	    }
-	  }]);
+	            return ch;
+	        }
+	    }, {
+	        key: "unsubscribe",
+	        value: function unsubscribe(channel, event) {
+	            var data = { type: "unsubscribe", channel: channel, event: event };
+	            this.ws.send(JSON.stringify(data));
+	        }
+	    }, {
+	        key: "perform",
+	        value: function perform(channel, event, msg) {
+	            var data = { type: "message", channel: channel, event: event, body: JSON.stringify(msg) };
+	            this.ws.send(JSON.stringify(data));
+	        }
+	    }]);
 
-	  return Connection;
+	    return Connection;
 	}(_events2.default.EventEmitter);
 
 	exports.default = Connection;
 
-/***/ },
+/***/ }),
 /* 2 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	// Copyright Joyent, Inc. and other Node contributors.
 	//
@@ -223,8 +236,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	      er = arguments[1];
 	      if (er instanceof Error) {
 	        throw er; // Unhandled 'error' event
+	      } else {
+	        // At least give some kind of context to the user
+	        var err = new Error('Uncaught, unspecified "error" event. (' + er + ')');
+	        err.context = er;
+	        throw err;
 	      }
-	      throw TypeError('Uncaught, unspecified "error" event.');
 	    }
 	  }
 
@@ -464,43 +481,44 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 
-/***/ },
+/***/ }),
 /* 3 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	"use strict";
 
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
 	Object.defineProperty(exports, "__esModule", {
-	  value: true
+	    value: true
 	});
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var Channel = function () {
-	  function Channel(conn, name, cb) {
-	    _classCallCheck(this, Channel);
+	    function Channel(conn, name, event, cb) {
+	        _classCallCheck(this, Channel);
 
-	    this.conn = conn;
-	    this.name = name;
-	    this.cb = cb;
-	  }
-
-	  _createClass(Channel, [{
-	    key: "subscribe",
-	    value: function subscribe() {
-	      var data = { type: "subscribe", channel: this.name };
-	      this.conn.send(data);
+	        this.conn = conn;
+	        this.name = name;
+	        this.event = event;
+	        this.cb = cb;
 	    }
-	  }]);
 
-	  return Channel;
+	    _createClass(Channel, [{
+	        key: "subscribe",
+	        value: function subscribe() {
+	            var data = { type: "subscribe", channel: this.name, event: this.event };
+	            this.conn.send(data);
+	        }
+	    }]);
+
+	    return Channel;
 	}();
 
 	exports.default = Channel;
 
-/***/ }
+/***/ })
 /******/ ])
 });
 ;

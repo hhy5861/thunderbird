@@ -7,35 +7,40 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Adapter interface {
-	Subscribe(channel string) error
-	Unsubscribe(channel string) error
-	Broadcast(channel string, payload []byte) error
-}
+type (
+	Adapter interface {
+		Subscribe(event Event) error
+		Unsubscribe(event Event) error
+		Broadcast(event Event, payload []byte) error
+	}
+)
 
 func New() *Thunderbird {
 	return &Thunderbird{
 		connections:     make(map[*Connection]bool),
-		channelHandlers: make(map[string][]ChannelHandler),
+		channelHandlers: make(map[string]map[string][]ChannelHandler),
 	}
 }
 
 type Thunderbird struct {
-	channelHandlers map[string][]ChannelHandler
+	channelHandlers map[string]map[string][]ChannelHandler
 	chanMutex       sync.RWMutex
 	connections     map[*Connection]bool
 	connMutex       sync.RWMutex
 }
 
-func (tb *Thunderbird) Broadcast(channel, body string) {
+func (tb *Thunderbird) Broadcast(event Event) {
 	tb.connMutex.Lock()
-	for conn, _ := range tb.connections {
-		if conn.isSubscribedTo(channel) {
+
+	for conn := range tb.connections {
+		if conn.isSubscribedTo(event) {
 			event := Event{
 				Type:    "message",
-				Channel: channel,
-				Body:    body,
+				Channel: event.Channel,
+				Event:   event.Event,
+				Body:    event.Body,
 			}
+
 			conn.send <- event
 		}
 	}
@@ -46,7 +51,7 @@ func (tb *Thunderbird) Broadcast(channel, body string) {
 func (tb *Thunderbird) newConnection(ws *websocket.Conn) *Connection {
 	return &Connection{
 		tb:            tb,
-		subscriptions: make(map[string]bool),
+		subscriptions: make(map[string]map[string]bool),
 		ws:            ws,
 		send:          make(chan Event),
 	}
@@ -68,6 +73,7 @@ func (tb *Thunderbird) HTTPHandlerWithUpgrader(upgrader websocket.Upgrader) http
 
 func (tb *Thunderbird) connected(c *Connection) {
 	tb.connMutex.Lock()
+
 	tb.connections[c] = true
 	tb.connMutex.Unlock()
 }
@@ -77,22 +83,24 @@ func (tb *Thunderbird) subscribed(e Event) {
 
 func (tb *Thunderbird) disconnected(c *Connection) {
 	tb.connMutex.Lock()
-	if _, ok := tb.connections[c]; ok {
+	if ok := tb.connections[c]; ok {
 		delete(tb.connections, c)
 		close(c.send)
 	}
+
 	tb.connMutex.Unlock()
 }
 
-func (tb *Thunderbird) HandleChannel(channel string, handler ChannelHandler) {
+func (tb *Thunderbird) HandleChannel(channel, event string, handler ChannelHandler) {
 	tb.chanMutex.Lock()
-	tb.channelHandlers[channel] = append(tb.channelHandlers[channel], handler)
+	tb.channelHandlers[channel] = make(map[string][]ChannelHandler)
+	tb.channelHandlers[channel][event] = append(tb.channelHandlers[channel][event], handler)
 	tb.chanMutex.Unlock()
 }
 
-func (tb *Thunderbird) Channels(channel string) []ChannelHandler {
+func (tb *Thunderbird) Channels(channel, event string) []ChannelHandler {
 	tb.chanMutex.Lock()
-	ch := tb.channelHandlers[channel]
+	ch := tb.channelHandlers[channel][event]
 	tb.chanMutex.Unlock()
 
 	return ch

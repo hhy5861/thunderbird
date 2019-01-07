@@ -2,6 +2,7 @@ package thunderbird
 
 import (
 	"encoding/json"
+	"github.com/hhy5861/logger"
 	"log"
 	"sync"
 	"time"
@@ -26,7 +27,7 @@ const (
 type Connection struct {
 	tb            *Thunderbird
 	ws            *websocket.Conn
-	subscriptions map[string]bool
+	subscriptions map[string]map[string]bool
 	subMutex      sync.RWMutex
 	send          chan Event
 }
@@ -35,18 +36,23 @@ type Connection struct {
 func (c *Connection) readPump() {
 	defer func() {
 		c.tb.disconnected(c)
-		c.ws.Close()
+		_ = c.ws.Close()
 	}()
+
 	c.ws.SetReadLimit(maxMessageSize)
-	c.ws.SetReadDeadline(time.Now().Add(pongWait))
+	err := c.ws.SetReadDeadline(time.Now().Add(time.Duration(pongWait)))
+	if err != nil {
+		logger.Error(err)
+	}
+
 	c.ws.SetPongHandler(func(d string) error {
-		c.ws.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
+		err := c.ws.SetReadDeadline(time.Now().Add(time.Duration(pongWait)))
+		return err
 	})
+
 	for {
 		var event Event
 		err := c.ws.ReadJSON(&event)
-
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
@@ -54,13 +60,19 @@ func (c *Connection) readPump() {
 			break
 		}
 
-		log.Printf("Received event %v", event)
+		if event.Event == "" {
+			event.Event = "default"
+		}
 
+		c.tb.connected(c)
 		switch event.Type {
 		case "subscribe":
-			c.Subscribed(event.Channel)
+			c.Subscribed(event)
+		case "unsubscribe":
+			c.Unsubscribe(event)
+			c.tb.disconnected(c)
 		case "message":
-			for _, ch := range c.tb.Channels(event.Channel) {
+			for _, ch := range c.tb.Channels(event.Channel, event.Event) {
 				ch.Received(event)
 			}
 		default:
@@ -69,18 +81,33 @@ func (c *Connection) readPump() {
 	}
 }
 
-func (c *Connection) Subscribed(channel string) {
+func (c *Connection) Subscribed(event Event) {
 	c.subMutex.Lock()
-	c.subscriptions[channel] = true
+	c.subscriptions[event.Channel] = make(map[string]bool)
+	c.subscriptions[event.Channel][event.Event] = true
 	c.subMutex.Unlock()
 }
 
-func (c *Connection) isSubscribedTo(channel string) bool {
+func (c *Connection) isSubscribedTo(event Event) bool {
 	c.subMutex.Lock()
-	r := c.subscriptions[channel]
+	r := c.subscriptions[event.Channel][event.Event]
 	c.subMutex.Unlock()
 
 	return r
+}
+
+func (c *Connection) Unsubscribe(event Event) {
+	c.subMutex.Lock()
+	subscribes, ok := c.subscriptions[event.Channel]
+	if ok {
+		if len(subscribes) > 2 {
+			delete(c.subscriptions[event.Channel], event.Event)
+		} else {
+			delete(c.subscriptions, event.Channel)
+		}
+	}
+
+	c.subMutex.Unlock()
 }
 
 // writePump pumps messages from the hub to the websocket connection.
@@ -88,24 +115,26 @@ func (c *Connection) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.ws.Close()
+		_ = c.ws.Close()
 	}()
+
 	for {
 		select {
 		case event, ok := <-c.send:
 			if !ok {
-				c.write(websocket.CloseMessage, []byte{})
+				_ = c.write(websocket.CloseMessage, []byte{})
 				return
 			}
+
 			b, err := json.Marshal(event)
 			if err != nil {
 				return
 			}
 
-			log.Printf("Sending event %v", event)
 			if err := c.write(websocket.TextMessage, b); err != nil {
 				return
 			}
+
 		case <-ticker.C:
 			if err := c.write(websocket.PingMessage, []byte{}); err != nil {
 				return
@@ -116,6 +145,10 @@ func (c *Connection) writePump() {
 
 // write writes a message with the given message type and payload.
 func (c *Connection) write(mt int, payload []byte) error {
-	c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+	err := c.ws.SetWriteDeadline(time.Now().Add(time.Duration(writeWait)))
+	if err != nil {
+		return err
+	}
+
 	return c.ws.WriteMessage(mt, payload)
 }

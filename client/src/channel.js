@@ -1,12 +1,13 @@
 export default class Channel {
-  constructor (conn, name, cb) {
-    this.conn = conn
-    this.name = name
-    this.cb = cb
-  }
+    constructor(conn, name, event, cb) {
+        this.conn = conn;
+        this.name = name;
+        this.event = event;
+        this.cb = cb
+    }
 
-  subscribe () {
-    var data = { type: "subscribe", channel: this.name}
-    this.conn.send(data)
-  }
+    subscribe() {
+        let data = {type: "subscribe", channel: this.name, event: this.event};
+        this.conn.send(data)
+    }
 }

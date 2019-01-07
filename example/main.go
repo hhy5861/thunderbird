@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+	"github.com/hhy5861/logger"
 	"net/http"
 	"os"
 	"text/template"
 
 	"github.com/codegangsta/negroni"
-	"github.com/gophergala2016/thunderbird"
 	"github.com/gorilla/mux"
+	"github.com/hhy5861/thunderbird"
 )
 
 var homeTempl = template.Must(template.ParseFiles("home.html"))
@@ -20,7 +21,8 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	if os.Getenv("GO_ENV") == "production" {
 		scheme = "wss"
 	}
-	url := fmt.Sprintf("%s://%s/ws", scheme, r.Host)
+
+	url := fmt.Sprintf("%s://%s/v1/ws", scheme, r.Host)
 
 	homeTempl.Execute(w, url)
 }
@@ -32,18 +34,26 @@ type RoomChannel struct {
 func (rc *RoomChannel) Received(event thunderbird.Event) {
 	switch event.Type {
 	case "message":
-		rc.tb.Broadcast(event.Channel, event.Body)
+		rc.tb.Broadcast(event)
 	}
 }
 
 func main() {
+	logger.NewLogger(&logger.Logger{
+		Debug:    true,
+		StdOut:   "file",
+		SavePath: "./",
+		FileName: "debug",
+	})
+
 	tb := thunderbird.New()
+
 	ch := &RoomChannel{tb}
-	tb.HandleChannel("room", ch)
+	tb.HandleChannel("room", "abc", ch)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", serveHome).Methods("GET")
-	router.Handle("/ws", tb.HTTPHandler())
+	router.Handle("/v1/ws", tb.HTTPHandler())
 
 	n := negroni.New(
 		negroni.NewRecovery(),
