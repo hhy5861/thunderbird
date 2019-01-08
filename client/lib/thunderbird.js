@@ -134,7 +134,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	            this.ws.onmessage = function (evt) {
 	                var data = JSON.parse(evt.data);
-	                console.log('tag', data);
 	                if (data.type === "message") {
 	                    self.emit(data.channel, JSON.parse(data.body));
 	                }
@@ -146,13 +145,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	            this.ws.send(JSON.stringify(data));
 	        }
 	    }, {
-	        key: "subscribe",
-	        value: function subscribe(channel, event, cb) {
+	        key: "bind",
+	        value: function bind(channel, event, cb) {
 	            var ch = new _channel2.default(this, channel, event, cb);
-	            ch.subscribe();
+	            ch.bind();
 	            this.on(channel, cb);
 
 	            return ch;
+	        }
+	    }, {
+	        key: "subscribe",
+	        value: function subscribe(channel, event) {
+	            var data = { type: "subscribe", channel: channel, event: event };
+	            this.ws.send(JSON.stringify(data));
 	        }
 	    }, {
 	        key: "unsubscribe",
@@ -506,8 +511,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 
 	    _createClass(Channel, [{
-	        key: "subscribe",
-	        value: function subscribe() {
+	        key: "bind",
+	        value: function bind() {
 	            var data = { type: "subscribe", channel: this.name, event: this.event };
 	            this.conn.send(data);
 	        }

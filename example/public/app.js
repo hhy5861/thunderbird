@@ -1,7 +1,11 @@
 $(function () {
-    var conn
-    var msg = $("#msg")
-    var log = $("#log")
+    let conn;
+    let msg = $("#msg");
+    let log = $("#log");
+    let event = $("#event");
+    let channel = $("#channel");
+    let defaultEventObj = $("#default_event");
+    let defaultChannelObj = $("#default_channel");
 
     function getURL() {
         element = document.head.querySelector("meta[name='thunderbird-url']");
@@ -9,15 +13,15 @@ $(function () {
     }
 
     function appendLog(msg) {
-        var d = log[0]
-        var doScroll = d.scrollTop == d.scrollHeight - d.clientHeight
+        let d = log[0]
+        let doScroll = d.scrollTop == d.scrollHeight - d.clientHeight
         msg.appendTo(log)
         if (doScroll) {
             d.scrollTop = d.scrollHeight - d.clientHeight
         }
     }
 
-    $("#form,#send").submit(function (evt) {
+    $("#send").on("click", function () {
         if (!conn) {
             return false;
         }
@@ -25,23 +29,43 @@ $(function () {
             return false;
         }
 
-        conn.perform("room", "abc", msg.val());
+        console.log("msg: ", msg.val());
+        conn.perform(defaultChannelObj.val(), defaultEventObj.val(), msg.val());
         msg.val("");
 
         return false
     });
 
-    $("#form,#unsubscribe").submit(function (evt) {
+    $("#unsubscribe").on("click", function () {
         if (!conn) {
             return false;
         }
 
-        conn.unsubscribe("room", "abc");
+        conn.unsubscribe(defaultChannelObj.val(), defaultEventObj.val());
+        return false
+    });
+
+    $("#subscribe").on("click", function () {
+        if (!conn) {
+            return false;
+        }
+
+        if (!channel.val()) {
+            return
+        }
+
+        if (!event.val()) {
+            return
+        }
+
+        defaultEventObj.val(event.val());
+        defaultChannelObj.val(channel.val());
+        conn.subscribe(channel.val(), event.val());
         return false
     });
 
     conn = Thunderbird.connect(getURL(), function (conn) {
-        conn.subscribe("room", "abc", function (msg) {
+        conn.bind(defaultChannelObj.val(), defaultEventObj.val(), function (msg) {
             appendLog($("<div/>").text(msg))
         })
     })

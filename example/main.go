@@ -23,8 +23,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	}
 
 	url := fmt.Sprintf("%s://%s/v1/ws", scheme, r.Host)
-
-	homeTempl.Execute(w, url)
+	_ = homeTempl.Execute(w, url)
 }
 
 type RoomChannel struct {
@@ -47,9 +46,10 @@ func main() {
 	})
 
 	tb := thunderbird.New()
+	tb.SetOpenSend(true)
 
-	ch := &RoomChannel{tb}
-	tb.HandleChannel("room", "abc", ch)
+	//ch := &RoomChannel{tb}
+	//tb.HandleChannel("room", "user", ch)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/", serveHome).Methods("GET")

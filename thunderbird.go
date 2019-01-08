@@ -27,11 +27,15 @@ type Thunderbird struct {
 	chanMutex       sync.RWMutex
 	connections     map[*Connection]bool
 	connMutex       sync.RWMutex
+	openSend        bool
+}
+
+func (tb *Thunderbird) SetOpenSend(openSend bool) {
+	tb.openSend = openSend
 }
 
 func (tb *Thunderbird) Broadcast(event Event) {
 	tb.connMutex.Lock()
-
 	for conn := range tb.connections {
 		if conn.isSubscribedTo(event) {
 			event := Event{
@@ -73,7 +77,6 @@ func (tb *Thunderbird) HTTPHandlerWithUpgrader(upgrader websocket.Upgrader) http
 
 func (tb *Thunderbird) connected(c *Connection) {
 	tb.connMutex.Lock()
-
 	tb.connections[c] = true
 	tb.connMutex.Unlock()
 }

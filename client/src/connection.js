@@ -30,7 +30,6 @@ export default class Connection extends Events.EventEmitter {
 
         this.ws.onmessage = function (evt) {
             let data = JSON.parse(evt.data);
-            console.log('tag', data);
             if (data.type === "message") {
                 self.emit(data.channel, JSON.parse(data.body))
             }
@@ -41,12 +40,17 @@ export default class Connection extends Events.EventEmitter {
         this.ws.send(JSON.stringify(data))
     }
 
-    subscribe(channel, event, cb) {
+    bind(channel, event, cb) {
         let ch = new Channel(this, channel, event, cb);
-        ch.subscribe();
+        ch.bind();
         this.on(channel, cb);
 
         return ch
+    }
+
+    subscribe(channel, event) {
+        let data = {type: "subscribe", channel: channel, event: event};
+        this.ws.send(JSON.stringify(data))
     }
 
     unsubscribe(channel, event) {

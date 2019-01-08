@@ -22,6 +22,8 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
+
+	DefaultEvent = "default"
 )
 
 type Connection struct {
@@ -61,19 +63,22 @@ func (c *Connection) readPump() {
 		}
 
 		if event.Event == "" {
-			event.Event = "default"
+			event.Event = DefaultEvent
 		}
 
-		c.tb.connected(c)
 		switch event.Type {
 		case "subscribe":
 			c.Subscribed(event)
+			if c.tb.openSend {
+				c.tb.HandleChannel(event.Channel, event.Event, &RoomChannel{tb: c.tb})
+			}
 		case "unsubscribe":
 			c.Unsubscribe(event)
-			c.tb.disconnected(c)
 		case "message":
-			for _, ch := range c.tb.Channels(event.Channel, event.Event) {
-				ch.Received(event)
+			if c.tb.openSend {
+				for _, ch := range c.tb.Channels(event.Channel, event.Event) {
+					ch.Received(event)
+				}
 			}
 		default:
 			log.Printf("unknown event command %s", event.Type)

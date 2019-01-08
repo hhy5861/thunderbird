@@ -6,7 +6,7 @@ export default class Channel {
         this.cb = cb
     }
 
-    subscribe() {
+    bind() {
         let data = {type: "subscribe", channel: this.name, event: this.event};
         this.conn.send(data)
     }
