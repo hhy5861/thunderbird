@@ -110,8 +110,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	        _this.url = url;
 	        _this.cb = cb;
 	        _this.connect();
-
-	        _this.channels = {};
 	        return _this;
 	    }
 
@@ -163,6 +161,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	        key: "unsubscribe",
 	        value: function unsubscribe(channel, event) {
 	            var data = { type: "unsubscribe", channel: channel, event: event };
+	            this.ws.send(JSON.stringify(data));
+	        }
+	    }, {
+	        key: "trigger",
+	        value: function trigger(channel, event, msg) {
+	            var data = { type: "trigger", channel: channel, event: event, body: JSON.stringify(msg) };
 	            this.ws.send(JSON.stringify(data));
 	        }
 	    }, {

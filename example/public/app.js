@@ -65,7 +65,7 @@ $(function () {
     });
 
     conn = Thunderbird.connect(getURL(), function (conn) {
-        conn.bind(defaultChannelObj.val(), defaultEventObj.val(), function (msg) {
+        conn.bind("ACCOUNT_BALANCE", "user_id_1", function (msg) {
             appendLog($("<div/>").text(msg))
         })
     })

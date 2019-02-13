@@ -8,8 +8,6 @@ export default class Connection extends Events.EventEmitter {
         this.url = url;
         this.cb = cb;
         this.connect();
-
-        this.channels = {}
     }
 
     connect() {
@@ -55,6 +53,11 @@ export default class Connection extends Events.EventEmitter {
 
     unsubscribe(channel, event) {
         let data = {type: "unsubscribe", channel: channel, event: event};
+        this.ws.send(JSON.stringify(data))
+    }
+
+    trigger(channel, event, msg) {
+        let data = {type: "trigger", channel: channel, event: event, body: JSON.stringify(msg)};
         this.ws.send(JSON.stringify(data))
     }
 

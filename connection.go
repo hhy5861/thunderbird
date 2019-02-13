@@ -69,11 +69,12 @@ func (c *Connection) readPump() {
 		switch event.Type {
 		case "subscribe":
 			c.Subscribed(event)
+		case "unsubscribe":
+			c.Unsubscribe(event)
+		case "trigger":
 			if c.tb.openSend {
 				c.tb.HandleChannel(event.Channel, event.Event, &RoomChannel{tb: c.tb})
 			}
-		case "unsubscribe":
-			c.Unsubscribe(event)
 		case "message":
 			if c.tb.openSend {
 				for _, ch := range c.tb.Channels(event.Channel, event.Event) {
